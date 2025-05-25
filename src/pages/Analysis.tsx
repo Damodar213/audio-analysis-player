@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Music2, Disc, BarChart2, Clock, File, Tag } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { useSongStoreProvider } from '../store/songStoreProvider';
+import { useSongStore } from '../store/songStore';
 import { formatFileSize, formatDate, getGenreColor } from '../utils/formatters';
 import { getSimilarSongsByGenre } from '../utils/genreAnalysis';
 import { motion } from 'framer-motion';
@@ -10,7 +10,7 @@ import { motion } from 'framer-motion';
 const Analysis: React.FC = () => {
   const { songId } = useParams<{ songId: string }>();
   const { user } = useAuthStore();
-  const { songs, fetchUserSongs, analyzeSong, setCurrentlyPlaying, togglePlayState } = useSongStoreProvider();
+  const { songs, fetchUserSongs, analyzeSong, setCurrentlyPlaying, togglePlayState } = useSongStore();
   
   const [song, setSong] = useState<any>(null);
   const [analyzing, setAnalyzing] = useState(false);

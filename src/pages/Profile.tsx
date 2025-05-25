@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Camera, Save, AlertCircle, LogOut, Moon, Sun, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { useSongStoreProvider } from '../store/songStoreProvider';
+import { useSongStore } from '../store/songStore';
 import { useThemeStore } from '../store/themeStore';
 import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
@@ -9,7 +9,7 @@ import { formatFileSize } from '../utils/formatters';
 
 const Profile: React.FC = () => {
   const { user, setUser } = useAuthStore();
-  const { songs, clearTestSongs } = useSongStoreProvider();
+  const { songs } = useSongStore();
   const { mode, toggleTheme } = useThemeStore();
   
   const [displayName, setDisplayName] = useState(user?.displayName || '');

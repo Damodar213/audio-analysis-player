@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, X, AlertCircle, CheckCircle, FileMusic, Music2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { useSongStoreProvider, testStorageConnection } from '../store/songStoreProvider';
+import { useSongStore } from '../store/songStore';
 import { formatFileSize } from '../utils/formatters';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
@@ -10,41 +10,13 @@ import { Song } from '../types';
 
 const Upload: React.FC = () => {
   const { user } = useAuthStore();
-  const { uploadSong, loading, error, clearError, fetchUserSongs, addSong, clearTestSongs } = useSongStoreProvider();
+  const { uploadSong, loading, error, clearError, fetchUserSongs } = useSongStore();
   const navigate = useNavigate();
   
   const [files, setFiles] = useState<File[]>([]);
   const [metadata, setMetadata] = useState<Record<string, { title: string; artist: string; album: string }>>({});
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'idle' | 'uploading' | 'success' | 'error'>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
-  const [fileIds, setFileIds] = useState<Record<string, string>>({});
-  const [storageConnectionStatus, setStorageConnectionStatus] = useState<'checking' | 'success' | 'failed'>('checking');
-  const [successfulUploads, setSuccessfulUploads] = useState<Song[]>([]);
-  
-  useEffect(() => {
-    // Test Firebase storage connection on component mount
-    const checkStorageConnection = async () => {
-      try {
-        const isConnected = await testStorageConnection();
-        setStorageConnectionStatus(isConnected ? 'success' : 'failed');
-      } catch (err) {
-        console.error('Error checking storage connection:', err);
-        setStorageConnectionStatus('failed');
-      }
-    };
-    
-    checkStorageConnection();
-  }, []);
-  
-  useEffect(() => {
-    // Effect to ensure successful uploads are reflected in the song store
-    if (successfulUploads.length > 0) {
-      console.log(`[Upload] Ensuring ${successfulUploads.length} successful uploads are in the song store`);
-      successfulUploads.forEach(song => {
-        addSong(song);
-      });
-    }
-  }, [successfulUploads, addSong]);
   
   const onDrop = useCallback((acceptedFiles: File[]) => {
     // Filter for audio files
@@ -54,14 +26,9 @@ const Upload: React.FC = () => {
     const newMetadata: Record<string, { title: string; artist: string; album: string }> = {};
     const newStatus: Record<string, 'idle' | 'uploading' | 'success' | 'error'> = {};
     const newProgress: Record<string, number> = {};
-    const newFileIds: Record<string, string> = {};
     
     audioFiles.forEach(file => {
-      // Create a stable file identifier
-      const fileKey = `${file.name}-${file.size}`;
-      const fileId = `${fileKey}-${Date.now()}`;
-      
-      newFileIds[fileKey] = fileId;
+      const fileId = `${file.name}-${file.size}-${Date.now()}`;
       newMetadata[fileId] = { 
         title: file.name.split('.')[0],
         artist: '',
@@ -75,7 +42,6 @@ const Upload: React.FC = () => {
     setMetadata(prev => ({ ...prev, ...newMetadata }));
     setUploadStatus(prev => ({ ...prev, ...newStatus }));
     setUploadProgress(prev => ({ ...prev, ...newProgress }));
-    setFileIds(prev => ({ ...prev, ...newFileIds }));
   }, []);
   
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
@@ -99,238 +65,42 @@ const Upload: React.FC = () => {
     }));
   };
   
-  // Helper function to get a stable file ID
-  const getFileId = (file: File): string => {
-    const fileKey = `${file.name}-${file.size}`;
-    return fileIds[fileKey] || '';
-  };
-  
-  // Function to test Firebase storage and then upload a file
-  const onUpload = async (file: File) => {
-    if (!user) {
-      console.error('[Upload] No user found for upload');
-      return null;
-    }
-    
-    // Get file ID
-    const fileId = getFileId(file);
-    if (!fileId) {
-      console.error('[Upload] File ID not found for', file.name);
-      return null;
-    }
-    
-    // Start upload process
-    setUploadStatus(prev => ({
-      ...prev,
-      [fileId]: 'uploading'
-    }));
-    
-    try {
-      console.log(`[Upload] Starting upload for file: ${file.name}`);
-      
-      // Try to check connection first
-      try {
-        await testStorageConnection();
-      } catch (connErr) {
-        console.warn('[Upload] Storage connection test failed, but will attempt upload anyway:', connErr);
-      }
-      
-      // Get metadata for this file
-      const meta = metadata[fileId] || {
-        title: file.name.split('.')[0],
-        artist: '',
-        album: ''
-      };
-      
-      // Upload using store
-      const uploadedSong = await uploadSong(file, user?.uid || 'unknown-user', meta);
-      console.log(`[Upload] Upload completed successfully for: ${file.name}`);
-      
-      // Update status
-      setUploadStatus(prev => ({
-        ...prev,
-        [fileId]: 'success'
-      }));
-      
-      // Add to successful uploads for tracking
-      setSuccessfulUploads(prev => [...prev, uploadedSong]);
-      
-      // Update progress to 100%
-      setUploadProgress(prev => ({
-        ...prev,
-        [fileId]: 100
-      }));
-      
-      return uploadedSong;
-    } catch (error) {
-      console.error(`[Upload] Error uploading file ${file.name}:`, error);
-      
-      // Update status to error
-      setUploadStatus(prev => ({
-        ...prev,
-        [fileId]: 'error'
-      }));
-      
-      // Set progress to 0 to indicate failure
-      setUploadProgress(prev => ({
-        ...prev,
-        [fileId]: 0
-      }));
-      
-      // Display error alert
-      window.alert(`Upload failed for ${file.name}. The app will continue in test mode with sample audio files.`);
-      
-      // Return null to indicate failure
-      return null;
-    }
-  };
-  
   const handleUploadFile = async (file: File) => {
     if (!user) return;
     
-    // Create a stable file key to retrieve the correct fileId
-    const fileKey = `${file.name}-${file.size}`;
-    const fileId = fileIds[fileKey];
-    
-    if (!fileId) {
-      console.error(`[Upload] File ID not found`, fileKey);
-      return;
-    }
-    
-    console.log(`[Upload] Starting upload process for file: ${file.name}`);
-    
-    // Clear any existing test songs before uploading
-    clearTestSongs();
-    
+    const fileId = `${file.name}-${file.size}-${Date.now()}`;
     setUploadStatus(prev => ({ ...prev, [fileId]: 'uploading' }));
-    setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
-    
-    let progressInterval: NodeJS.Timeout | null = null;
-    let forceProgressTimeout: NodeJS.Timeout | null = null;
     
     try {
-      // Use smaller intervals for smoother animation
-      console.log(`[Upload] Starting progress simulation for ${file.name}`);
-      let lastProgress = 0;
-      
-      progressInterval = setInterval(() => {
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
         setUploadProgress(prev => {
           const currentProgress = prev[fileId] || 0;
-          
-          // Make progress increments smaller as we get closer to 100%
-          let increment;
-          if (currentProgress < 30) increment = 8;
-          else if (currentProgress < 60) increment = 5;
-          else if (currentProgress < 85) increment = 2;
-          else increment = 0.5; // Slower near completion
-          
-          // Cap progress at 95% until we know the upload is complete
-          const newProgress = Math.min(95, currentProgress + increment);
-          
-          if (newProgress !== lastProgress) {
-            lastProgress = newProgress;
-            console.log(`[Upload] Progress for ${file.name}: ${newProgress}%`);
+          if (currentProgress < 90) {
+            return { ...prev, [fileId]: currentProgress + 10 };
           }
-          
-          return { ...prev, [fileId]: newProgress };
+          return prev;
         });
-      }, 150); // Smaller interval for smoother animation
+      }, 300);
       
-      console.log(`[Upload] Calling uploadSong function for ${file.name}`);
+      // Upload the file
+      await uploadSong(file, user.uid, metadata[fileId]);
       
-      // Always force progress to 100% after a timeout
-      forceProgressTimeout = setTimeout(() => {
-        console.log(`[Upload] Force progress timeout triggered for ${file.name}`);
-        if (progressInterval) {
-          clearInterval(progressInterval);
-          progressInterval = null;
-        }
-        // Rather than forcing to 100%, we'll set an error state after timeout
-        setUploadStatus(prev => ({ ...prev, [fileId]: 'error' }));
-        setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
-        console.log(`[Upload] Upload timeout for ${file.name}`);
-        window.alert(`Upload timed out for ${file.name}. Please try again or refresh the page.`);
-      }, 15000); // 15 seconds max wait
+      clearInterval(progressInterval);
+      setUploadProgress(prev => ({ ...prev, [fileId]: 100 }));
+      setUploadStatus(prev => ({ ...prev, [fileId]: 'success' }));
       
-      // Upload the file - explicitly handle any errors from here
-      try {
-        // Start the upload process
-        const uploadPromise = uploadSong(file, user.uid, metadata[fileId]);
-        
-        // Wait for the actual upload to complete
-        const newSong = await uploadPromise;
-        console.log(`[Upload] Upload completed successfully for ${file.name}`, newSong);
-        
-        // Clear timeouts and intervals
-        if (forceProgressTimeout) {
-          clearTimeout(forceProgressTimeout);
-          forceProgressTimeout = null;
-        }
-        
-        if (progressInterval) {
-          clearInterval(progressInterval);
-          progressInterval = null;
-        }
-        
-        // Explicitly set progress to 100% and status to success
-        console.log(`[Upload] Setting final progress to 100% for ${file.name}`);
-        setUploadProgress(prev => ({ ...prev, [fileId]: 100 }));
-        setUploadStatus(prev => ({ ...prev, [fileId]: 'success' }));
-        
-        // Manually add the song to the song store and update successful uploads
-        addSong(newSong);
-        setSuccessfulUploads(prev => [...prev, newSong]);
-        
-        // Try to refresh the library
-        try {
-          await fetchUserSongs(user.uid);
-        } catch (refreshErr) {
-          console.error(`[Upload] Failed to refresh songs for ${file.name}, but upload was successful:`, refreshErr);
-        }
-        
-        // Remove the file from the list after a short delay
-        setTimeout(() => {
-          setFiles(prev => prev.filter(f => f !== file));
-          console.log(`[Upload] Removed ${file.name} from file list`);
-          
-          // Navigate to library to see the uploaded song
-          window.alert(`Upload complete! Click OK to view your song in the library.`);
-          navigate('/library');
-        }, 1500);
-      } catch (uploadErr) {
-        // Handle specific upload error
-        console.error(`[Upload] Upload operation failed for ${file.name}:`, uploadErr);
-        
-        // Clear any pending timeouts/intervals
-        if (forceProgressTimeout) {
-          clearTimeout(forceProgressTimeout);
-          forceProgressTimeout = null;
-        }
-        
-        if (progressInterval) {
-          clearInterval(progressInterval);
-          progressInterval = null;
-        }
-        
-        setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
-        setUploadStatus(prev => ({ ...prev, [fileId]: 'error' }));
-        window.alert(`Upload failed for ${file.name}. The app will continue in test mode with sample audio files.`);
-      }
+      // Refresh the music library after upload
+      await fetchUserSongs(user.uid);
+      
+      // Remove the file from the list after a short delay
+      setTimeout(() => {
+        setFiles(prev => prev.filter(f => f !== file));
+      }, 1500);
+      
     } catch (err) {
-      // Handle any other unexpected errors
-      console.error(`[Upload] Unexpected error during upload process for ${file.name}:`, err);
-      
-      if (forceProgressTimeout) {
-        clearTimeout(forceProgressTimeout);
-      }
-      
-      if (progressInterval) {
-        clearInterval(progressInterval);
-      }
-      
-      setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
       setUploadStatus(prev => ({ ...prev, [fileId]: 'error' }));
-      window.alert(`An unexpected error occurred during upload. Please try again.`);
+      console.error('Upload failed:', err);
     }
   };
   
@@ -338,13 +108,13 @@ const Upload: React.FC = () => {
     if (!user) return;
     
     for (const file of files) {
-      const fileKey = `${file.name}-${file.size}`;
-      const fileId = fileIds[fileKey];
-      
-      if (fileId && uploadStatus[fileId] !== 'success') {
+      if (uploadStatus[`${file.name}-${file.size}-${Date.now()}`] !== 'success') {
         await handleUploadFile(file);
       }
     }
+    
+    // Refresh the music library after all uploads
+    await fetchUserSongs(user.uid);
   };
   
   // Add a function to navigate to the library
@@ -359,23 +129,6 @@ const Upload: React.FC = () => {
         <p className="mt-2 text-gray-600 dark:text-gray-400">
           Add music files to your library for genre analysis
         </p>
-        
-        {/* Firebase Storage connection status */}
-        {storageConnectionStatus === 'checking' && (
-          <div className="mt-2 text-sm text-amber-600 dark:text-amber-400">
-            Checking storage connection...
-          </div>
-        )}
-        {storageConnectionStatus === 'success' && (
-          <div className="mt-2 text-sm text-success-600 dark:text-success-400">
-            Storage connection successful
-          </div>
-        )}
-        {storageConnectionStatus === 'failed' && (
-          <div className="mt-2 text-sm text-error-600 dark:text-error-400">
-            Storage connection failed - uploads may not work
-          </div>
-        )}
       </div>
       
       {error && (
@@ -435,10 +188,7 @@ const Upload: React.FC = () => {
           
           <div className="space-y-4">
             {files.map((file, index) => {
-              const fileKey = `${file.name}-${file.size}`;
-              const fileId = fileIds[fileKey];
-              if (!fileId) return null;
-              
+              const fileId = `${file.name}-${file.size}-${Date.now()}`;
               const status = uploadStatus[fileId] || 'idle';
               const progress = uploadProgress[fileId] || 0;
               
@@ -504,10 +254,7 @@ const Upload: React.FC = () => {
                         )}
                         
                         {status === 'success' && (
-                          <div className="flex items-center">
-                            <CheckCircle className="h-5 w-5 text-success-500 mr-1" />
-                            <span className="text-xs text-success-600 dark:text-success-400">Upload complete</span>
-                          </div>
+                          <CheckCircle className="h-5 w-5 text-success-500" />
                         )}
                         
                         {status === 'error' && (

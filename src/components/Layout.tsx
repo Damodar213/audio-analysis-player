@@ -1,15 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import Player from './Player';
-import SimplePlayer from './SimplePlayer';
-import { useSongStoreProvider } from '../store/songStoreProvider';
+import { useSongStore } from '../store/songStore';
 
 const Layout: React.FC = () => {
-  const { currentlyPlaying } = useSongStoreProvider();
-  // State to determine which player to use
-  const [useSimplePlayer, setUseSimplePlayer] = useState(true); // Default to SimplePlayer
+  const { currentlyPlaying } = useSongStore();
   
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
@@ -28,27 +25,10 @@ const Layout: React.FC = () => {
           </div>
         </main>
         
-        {/* Audio player controls */}
+        {/* Audio player at bottom */}
         {currentlyPlaying && (
           <div className="border-t border-gray-200 dark:border-gray-800">
-            {/* Player selector */}
-            <div className="flex justify-center items-center py-1 text-xs">
-              <button 
-                className={`mx-1 px-2 py-1 rounded ${!useSimplePlayer ? 'bg-primary-500 text-white' : 'text-gray-600'}`}
-                onClick={() => setUseSimplePlayer(false)}
-              >
-                WaveSurfer Player
-              </button>
-              <button 
-                className={`mx-1 px-2 py-1 rounded ${useSimplePlayer ? 'bg-primary-500 text-white' : 'text-gray-600'}`}
-                onClick={() => setUseSimplePlayer(true)}
-              >
-                Simple Player
-              </button>
-            </div>
-            
-            {/* Render the selected player */}
-            {useSimplePlayer ? <SimplePlayer /> : <Player />}
+            <Player />
           </div>
         )}
       </div>

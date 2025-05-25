@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getAnalytics } from 'firebase/analytics';
@@ -22,17 +22,9 @@ const app = initializeApp(firebaseConfig);
 export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-
-// Initialize storage with CORS settings
 export const storage = getStorage(app);
 
 // Enable Firebase Auth persistence
-try {
-  setPersistence(auth, browserLocalPersistence)
-    .then(() => console.log('Firebase Auth persistence set to local'))
-    .catch(error => console.error('Error setting auth persistence:', error));
-} catch (error) {
-  console.error('Error setting auth persistence:', error);
-}
+auth.setPersistence('local');
 
 export default app;

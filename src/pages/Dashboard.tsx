@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FileAudio, Upload, BarChart2, Music } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { useSongStoreProvider } from '../store/songStoreProvider';
+import { useSongStore } from '../store/songStore';
 import SongCard from '../components/SongCard';
 import { motion } from 'framer-motion';
 
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { songs, fetchUserSongs, loading } = useSongStoreProvider();
+  const { songs, fetchUserSongs, loading } = useSongStore();
   const [stats, setStats] = useState({
     totalSongs: 0,
     analyzedSongs: 0,

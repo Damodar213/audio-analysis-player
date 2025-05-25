@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Play, Music, FileAudio, BarChart2, Trash2 } from 'lucide-react';
-import { useSongStoreProvider } from '../store/songStoreProvider';
 import { Song } from '../types';
+import { useSongStore } from '../store/songStore';
 import { formatFileSize, formatDate, getGenreColor, truncateString } from '../utils/formatters';
 
 interface SongCardProps {
@@ -11,14 +11,7 @@ interface SongCardProps {
 }
 
 const SongCard: React.FC<SongCardProps> = ({ song, compact = false }) => {
-  const { 
-    currentlyPlaying, 
-    isPlaying, 
-    setCurrentlyPlaying, 
-    togglePlayState, 
-    deleteSong, 
-    analyzeSong 
-  } = useSongStoreProvider();
+  const { deleteSong, analyzeSong, setCurrentlyPlaying, togglePlayState, currentlyPlaying, isPlaying } = useSongStore();
   
   const handlePlay = (e: React.MouseEvent) => {
     e.preventDefault();
