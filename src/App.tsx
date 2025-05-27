@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase/config';
+import { supabase } from './supabaseClient'; // Import Supabase client
 import { useAuthStore } from './store/authStore';
 import { useThemeStore } from './store/themeStore';
 
@@ -33,20 +32,40 @@ function App() {
   }, [mode]);
   
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUser({
-          uid: user.uid,
-          email: user.email || '',
-          displayName: user.displayName,
-          photoURL: user.photoURL
-        });
-      } else {
-        setUser(null);
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        const user = session?.user ?? null;
+        if (user) {
+          setUser({
+            uid: user.id, // Use user.id for Supabase
+            email: user.email || '',
+            displayName: user.user_metadata?.full_name || user.email, // Adjust based on your Supabase setup
+            photoURL: user.user_metadata?.avatar_url || null
+          });
+        } else {
+          setUser(null);
+        }
       }
+    );
+
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const user = session?.user ?? null;
+       if (user) {
+          setUser({
+            uid: user.id,
+            email: user.email || '',
+            displayName: user.user_metadata?.full_name || user.email,
+            photoURL: user.user_metadata?.avatar_url || null
+          });
+        } else {
+          setUser(null);
+        }
     });
-    
-    return () => unsubscribe();
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
   }, [setUser]);
   
   return (

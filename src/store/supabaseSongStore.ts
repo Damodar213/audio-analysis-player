@@ -11,11 +11,11 @@ const testSongs = [
     title: 'Synthwave Melody',
     artist: 'Test Artist 1',
     album: 'Test Album',
-    userId: 'test-user',
-    fileUrl: 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg',
-    fileName: 'synthwave.mp3',
-    fileSize: 1466000,
-    uploadedAt: Date.now() - 86400000, // 1 day ago
+    user_id: 'test-user',
+    file_url: 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg',
+    file_name: 'synthwave.mp3',
+    file_size: 1466000,
+    uploaded_at: Date.now() - 86400000, // 1 day ago
     genres: [
       { name: 'Electronic', confidence: 0.95 },
       { name: 'Synthwave', confidence: 0.85 },
@@ -28,11 +28,11 @@ const testSongs = [
     title: 'Acoustic Guitar',
     artist: 'Test Artist 2',
     album: 'Acoustic Sessions',
-    userId: 'test-user',
-    fileUrl: 'https://actions.google.com/sounds/v1/alarms/bugle_tune.ogg',
-    fileName: 'acoustic.mp3',
-    fileSize: 1229000,
-    uploadedAt: Date.now() - 43200000, // 12 hours ago
+    user_id: 'test-user',
+    file_url: 'https://actions.google.com/sounds/v1/alarms/bugle_tune.ogg',
+    file_name: 'acoustic.mp3',
+    file_size: 1229000,
+    uploaded_at: Date.now() - 43200000, // 12 hours ago
     genres: [
       { name: 'Acoustic', confidence: 0.92 },
       { name: 'Folk', confidence: 0.82 },
@@ -132,13 +132,13 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
       // Always use test mode if Supabase client is not available
       const bypassSupabaseForTesting = !supabase;
       
-      if (!bypassSupabaseForTesting) {
+      if (!bypassSupabaseForTesting && supabase) {
         // Fetch songs from Supabase database
         const { data, error } = await supabase
           .from('songs')
           .select('*')
-          .eq('userId', userId)
-          .order('uploadedAt', { ascending: false });
+          .eq('user_id', userId)
+          .order('uploaded_at', { ascending: false });
         
         if (error) throw error;
         
@@ -155,10 +155,10 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
             !song.id.startsWith('test-song-')
           );
           
-          // Add test songs with the correct userId
+          // Add test songs with the correct user_id
           const testSongsWithUserId = testSongs.map(song => ({
             ...song,
-            userId: userId
+            user_id: userId
           }));
           
           const combinedSongs = [...existingSongs, ...testSongsWithUserId];
@@ -184,7 +184,7 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
       // Always use test mode if Supabase client is not available
       const bypassSupabaseForTesting = !supabase;
       
-      let fileUrl = '';
+      let fileUrlValue = '';
       // Create a stable ID to prevent duplicates
       const fileId = bypassSupabaseForTesting ? 
         `test-id-${file.name}-${file.size}` : 
@@ -214,8 +214,8 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
           .from(SONGS_BUCKET)
           .getPublicUrl(filePath);
         
-        fileUrl = publicUrlData.publicUrl;
-        console.log('[SongStore] File URL obtained:', fileUrl);
+        fileUrlValue = publicUrlData.publicUrl;
+        console.log('[SongStore] File URL obtained:', fileUrlValue);
       } else {
         // Bypass actual upload for testing
         console.log('[SongStore] TESTING MODE: Bypassing actual Supabase upload');
@@ -232,8 +232,8 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
         ];
         
         const randomIndex = Math.floor(Math.random() * sampleMusicUrls.length);
-        fileUrl = sampleMusicUrls[randomIndex];
-        console.log('[SongStore] TESTING MODE: Using sample audio URL for testing:', fileUrl);
+        fileUrlValue = sampleMusicUrls[randomIndex];
+        console.log('[SongStore] TESTING MODE: Using sample audio URL for testing:', fileUrlValue);
       }
       
       // Clear any existing test songs with similar IDs to prevent duplicates
@@ -251,11 +251,11 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
         title: metadata.title || file.name.split('.')[0],
         artist: metadata.artist || 'Unknown Artist',
         album: metadata.album || 'Unknown Album',
-        userId,
-        fileUrl,
-        fileName: file.name,
-        fileSize: file.size,
-        uploadedAt: Date.now(),
+        user_id: userId,
+        file_url: fileUrlValue,
+        file_name: file.name,
+        file_size: file.size,
+        uploaded_at: Date.now(),
         genres: [],
         analyzed: false
       };
@@ -263,7 +263,7 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
       // STEP 3: Add song metadata to Supabase database
       let newSong = { ...songData };
       
-      if (!bypassSupabaseForTesting) {
+      if (!bypassSupabaseForTesting && supabase) {
         console.log('[SongStore] Adding song metadata to Supabase database...');
         const { data: insertData, error: insertError } = await supabase
           .from('songs')
@@ -289,7 +289,7 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
         console.log('[SongStore] Genre analysis complete:', genres);
         
         // Update database with genres
-        if (!bypassSupabaseForTesting) {
+        if (!bypassSupabaseForTesting && supabase) {
           const { error: updateError } = await supabase
             .from('songs')
             .update({ genres, analyzed: true })
@@ -331,7 +331,7 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
       // Always use test mode if Supabase client is not available
       const bypassSupabaseForTesting = !supabase;
       
-      if (!bypassSupabaseForTesting) {
+      if (!bypassSupabaseForTesting && supabase) {
         // First, get the song to find its file path
         const { data: song, error: fetchError } = await supabase
           .from('songs')
@@ -343,8 +343,8 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
         
         // Delete the file from storage
         if (song) {
-          const userId = song.userId;
-          const filePath = `${userId}/${songId}-${song.fileName}`;
+          const userIdValue = song.user_id;
+          const filePath = `${userIdValue}/${songId}-${song.file_name}`;
           
           const { error: storageError } = await supabase.storage
             .from(SONGS_BUCKET)
@@ -417,7 +417,7 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
       // Simulate genre analysis
       const genres = await simulateGenreAnalysis(song.title);
       
-      if (!bypassSupabaseForTesting) {
+      if (!bypassSupabaseForTesting && supabase) {
         // Update in Supabase
         const { error } = await supabase
           .from('songs')

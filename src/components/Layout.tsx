@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import Player from './Player';
-import { useSongStore } from '../store/songStore';
+import { useSongStoreProvider as useSongStore } from '../store/songStoreProvider';
 
 const Layout: React.FC = () => {
   const { currentlyPlaying } = useSongStore();

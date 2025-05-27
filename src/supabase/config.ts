@@ -18,44 +18,30 @@ export const isSupabaseConfigured = !!supabase;
 // Initialize the storage bucket
 export const initializeStorage = async () => {
   if (!supabase) {
-    console.warn('Supabase client not initialized. Using test mode.');
+    console.warn('[initializeStorage] Supabase client not initialized. Cannot check bucket.');
     return false;
   }
   
   try {
-    // Check if the bucket exists, create it if it doesn't
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const bucketExists = buckets?.some(bucket => bucket.name === SONGS_BUCKET);
+    // Check if the bucket exists
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
     
-    if (!bucketExists) {
-      const { data, error } = await supabase.storage.createBucket(SONGS_BUCKET, {
-        public: true, // Make files publicly accessible
-        fileSizeLimit: 50 * 1024 * 1024, // 50MB limit per file
-      });
-      
-      if (error) {
-        console.error('Error creating Supabase storage bucket:', error);
-      } else {
-        console.log('Created Supabase storage bucket:', data);
-      }
-    } else {
-      // Update bucket settings
-      const { error } = await supabase.storage.updateBucket(SONGS_BUCKET, {
-        public: true,
-        fileSizeLimit: 50 * 1024 * 1024,
-      });
-      
-      if (error) {
-        console.error('Error updating bucket settings:', error);
-      } else {
-        console.log('Updated bucket settings successfully');
-      }
+    if (listError) {
+      console.error('[initializeStorage] Error listing buckets:', listError);
+      return false;
     }
     
-    console.log('Supabase storage initialized successfully');
-    return true;
+    const bucketExists = buckets?.some(bucket => bucket.name === SONGS_BUCKET);
+    
+    if (bucketExists) {
+      console.log(`[initializeStorage] Storage bucket '${SONGS_BUCKET}' found.`);
+      return true;
+    } else {
+      console.warn(`[initializeStorage] Storage bucket '${SONGS_BUCKET}' NOT found. Please create it manually in the Supabase dashboard.`);
+      return false; // Or true if you want the app to proceed, but uploads will fail.
+    }
   } catch (err) {
-    console.error('Error initializing Supabase storage:', err);
+    console.error('[initializeStorage] Error checking Supabase storage:', err);
     return false;
   }
 }; 

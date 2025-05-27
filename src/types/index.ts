@@ -11,11 +11,11 @@ export interface Song {
   artist?: string;
   album?: string;
   year?: number;
-  userId: string;
-  fileUrl: string;
-  fileName: string;
-  fileSize: number;
-  uploadedAt: number;
+  user_id: string;
+  file_url: string;
+  file_name: string;
+  file_size: number;
+  uploaded_at: number;
   genres: Genre[];
   analyzed: boolean;
   coverArt?: string;

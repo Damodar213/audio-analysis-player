@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Play, Music, FileAudio, BarChart2, Trash2 } from 'lucide-react';
+import { useSongStoreProvider as useSongStore } from '../store/songStoreProvider';
 import { Song } from '../types';
-import { useSongStore } from '../store/songStore';
 import { formatFileSize, formatDate, getGenreColor, truncateString } from '../utils/formatters';
 
 interface SongCardProps {
@@ -160,8 +160,8 @@ const SongCard: React.FC<SongCardProps> = ({ song, compact = false }) => {
           </div>
           
           <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-            <p>Uploaded: {formatDate(song.uploadedAt)}</p>
-            <p>Size: {formatFileSize(song.fileSize)}</p>
+            <p>Uploaded: {formatDate(song.uploaded_at)}</p>
+            <p>Size: {formatFileSize(song.file_size)}</p>
           </div>
           
           {song.analyzed && song.genres.length > 0 && (

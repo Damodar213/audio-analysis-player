@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, X, AlertCircle, CheckCircle, FileMusic, Music2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { useSongStore } from '../store/songStore';
+import { useSongStoreProvider as useSongStore } from '../store/songStoreProvider';
 import { formatFileSize } from '../utils/formatters';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';

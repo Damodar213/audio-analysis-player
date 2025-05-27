@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FileAudio, Upload, BarChart2, Music } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { useSongStore } from '../store/songStore';
+import { useSongStoreProvider as useSongStore } from '../store/songStoreProvider';
 import SongCard from '../components/SongCard';
 import { motion } from 'framer-motion';
 

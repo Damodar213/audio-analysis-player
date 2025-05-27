@@ -1,18 +1,18 @@
-import { useSongStore } from './songStore';
 import { useSupabaseSongStore } from './supabaseSongStore';
-import { isSupabaseConfigured } from '../supabase/config';
+import { isSupabaseConfigured } from '../supabase/config'; // Keep for potential future use or logging
 
-// Set this to true to use Supabase instead of Firebase when Supabase is configured
-// If Supabase is not configured, it will fall back to Firebase regardless
-const USE_SUPABASE = true;
+// Always use Supabase store
+export const useSongStoreProvider = useSupabaseSongStore;
 
-// Determine which store to use based on configuration and preference
-const useSupabase = USE_SUPABASE && isSupabaseConfigured;
-
-// Export the appropriate store based on the configuration
-export const useSongStoreProvider = useSupabase ? useSupabaseSongStore : useSongStore;
-
-// Export the storage connection test function from the appropriate store
-export const testStorageConnection = useSupabase ? 
-  (await import('./supabaseSongStore')).testStorageConnection : 
-  (await import('./songStore')).testStorageConnection; 
+// Export the storage connection test function from the Supabase store
+export const testStorageConnection = async () => {
+  // Check if Supabase is configured before attempting to import and run test
+  if (isSupabaseConfigured) {
+    const supabaseStore = await import('./supabaseSongStore');
+    return supabaseStore.testStorageConnection();
+  } else {
+    console.warn('[SongStoreProvider] Supabase not configured. Storage connection test skipped.');
+    // Return a promise that resolves to true or false based on your desired default behavior
+    return Promise.resolve(false); 
+  }
+}; 

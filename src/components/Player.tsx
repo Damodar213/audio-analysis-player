@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
-import { useSongStore } from '../store/songStore';
+import { useSongStoreProvider as useSongStore } from '../store/songStoreProvider';
 import { formatDuration } from '../utils/formatters';
 import WaveSurfer from 'wavesurfer.js';
 
@@ -16,14 +16,16 @@ const Player: React.FC = () => {
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   
   useEffect(() => {
+    let wavesurfer: WaveSurfer | null = null;
+
     if (waveformRef.current && currentlyPlaying) {
-      // Destroy previous instance if it exists
+      // Destroy previous global instance if it exists and is different
       if (wavesurferRef.current) {
         wavesurferRef.current.destroy();
+        wavesurferRef.current = null;
       }
       
-      // Create WaveSurfer instance
-      const wavesurfer = WaveSurfer.create({
+      wavesurfer = WaveSurfer.create({
         container: waveformRef.current,
         waveColor: '#9CA3AF',
         progressColor: '#7C3AED',
@@ -32,36 +34,59 @@ const Player: React.FC = () => {
         barGap: 3,
         barRadius: 3,
         height: 50,
-        responsive: true,
       });
       
-      wavesurfer.load(currentlyPlaying.fileUrl);
+      wavesurfer.load(currentlyPlaying.file_url);
       
-      wavesurfer.on('ready', () => {
+      const onReady = () => {
         wavesurferRef.current = wavesurfer;
-        wavesurfer.setVolume(volume);
-        setDuration(wavesurfer.getDuration());
-        
-        // Sync with audio element
-        if (isPlaying && audioRef.current) {
-          audioRef.current.play();
-          wavesurfer.play();
+        if (wavesurfer) {
+          wavesurfer.setVolume(volume);
+          setDuration(wavesurfer.getDuration());
+          if (isPlaying && audioRef.current) {
+            audioRef.current.play();
+            wavesurfer.play();
+          }
         }
-      });
-      
-      wavesurfer.on('audioprocess', () => {
-        setCurrentTime(wavesurfer.getCurrentTime());
-      });
-      
-      wavesurfer.on('finish', () => {
-        togglePlayState(false);
-      });
-      
-      return () => {
-        wavesurfer.destroy();
       };
+
+      const onAudioProcess = () => {
+        if (wavesurfer) setCurrentTime(wavesurfer.getCurrentTime());
+      };
+
+      const onFinish = () => {
+        togglePlayState(false);
+      };
+
+      wavesurfer.on('ready', onReady);
+      wavesurfer.on('audioprocess', onAudioProcess);
+      wavesurfer.on('finish', onFinish);
+      
+      // Cleanup function for this specific effect run
+      return () => {
+        if (wavesurfer) {
+          const wasThisInstanceInRef = wavesurferRef.current === wavesurfer;
+          wavesurfer.unAll();
+          wavesurfer.stop();
+          wavesurfer.destroy();
+          if (wasThisInstanceInRef) {
+            wavesurferRef.current = null;
+          }
+        }
+      };
+    } else {
+      // If no song is currently playing, or waveformRef is not available,
+      // ensure any existing global WaveSurfer instance is destroyed.
+      if (wavesurferRef.current) {
+        wavesurferRef.current.stop();
+        wavesurferRef.current.destroy();
+        wavesurferRef.current = null;
+      }
+      // Also clear duration and current time
+      setDuration(0);
+      setCurrentTime(0);
     }
-  }, [currentlyPlaying, volume]);
+  }, [currentlyPlaying]);
   
   useEffect(() => {
     if (audioRef.current) {
@@ -187,7 +212,7 @@ const Player: React.FC = () => {
       
       <audio
         ref={audioRef}
-        src={currentlyPlaying.fileUrl}
+        src={currentlyPlaying.file_url}
         onEnded={() => togglePlayState(false)}
         hidden
       />

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Search, Music, Filter, X, Plus } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { useSongStore } from '../store/songStore';
+import { useSongStoreProvider as useSongStore } from '../store/songStoreProvider';
 import SongCard from '../components/SongCard';
 import { Link } from 'react-router-dom';
 

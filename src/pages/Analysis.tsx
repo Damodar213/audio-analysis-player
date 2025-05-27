@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Music2, Disc, BarChart2, Clock, File, Tag } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { useSongStore } from '../store/songStore';
+import { useSongStoreProvider as useSongStore } from '../store/songStoreProvider';
 import { formatFileSize, formatDate, getGenreColor } from '../utils/formatters';
 import { getSimilarSongsByGenre } from '../utils/genreAnalysis';
 import { motion } from 'framer-motion';

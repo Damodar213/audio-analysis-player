@@ -4,11 +4,11 @@ CREATE TABLE IF NOT EXISTS public.songs (
   title TEXT NOT NULL,
   artist TEXT NOT NULL,
   album TEXT,
-  userId TEXT NOT NULL,
-  fileUrl TEXT NOT NULL,
-  fileName TEXT NOT NULL,
-  fileSize BIGINT NOT NULL,
-  uploadedAt BIGINT NOT NULL,
+  user_id TEXT NOT NULL,
+  file_url TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  file_size BIGINT NOT NULL,
+  uploaded_at BIGINT NOT NULL,
   genres JSONB DEFAULT '[]'::JSONB,
   analyzed BOOLEAN DEFAULT FALSE,
   
@@ -24,28 +24,28 @@ ALTER TABLE public.songs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view their own songs"
   ON public.songs
   FOR SELECT
-  USING (auth.uid()::TEXT = userId);
+  USING (auth.uid()::TEXT = user_id);
 
 -- Create a policy that allows users to insert their own songs
 CREATE POLICY "Users can insert their own songs"
   ON public.songs
   FOR INSERT
-  WITH CHECK (auth.uid()::TEXT = userId);
+  WITH CHECK (auth.uid()::TEXT = user_id);
 
 -- Create a policy that allows users to update their own songs
 CREATE POLICY "Users can update their own songs"
   ON public.songs
   FOR UPDATE
-  USING (auth.uid()::TEXT = userId);
+  USING (auth.uid()::TEXT = user_id);
 
 -- Create a policy that allows users to delete their own songs
 CREATE POLICY "Users can delete their own songs"
   ON public.songs
   FOR DELETE
-  USING (auth.uid()::TEXT = userId);
+  USING (auth.uid()::TEXT = user_id);
 
 -- Create an index on userId for faster queries
-CREATE INDEX IF NOT EXISTS songs_user_id_idx ON public.songs(userId);
+CREATE INDEX IF NOT EXISTS songs_user_id_idx ON public.songs(user_id);
 
 -- Create a trigger function to update updated_at
 CREATE OR REPLACE FUNCTION public.set_updated_at()

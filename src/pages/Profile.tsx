@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { User, Mail, Camera, Save, AlertCircle, LogOut, Moon, Sun, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { useSongStore } from '../store/songStore';
+import { useSongStoreProvider as useSongStore } from '../store/songStoreProvider';
 import { useThemeStore } from '../store/themeStore';
-import { auth } from '../firebase/config';
-import { signOut } from 'firebase/auth';
-import { formatFileSize } from '../utils/formatters';
 
 const Profile: React.FC = () => {
-  const { user, setUser } = useAuthStore();
-  const { songs } = useSongStore();
+  const { user, logout } = useAuthStore();
+  const { songs, fetchUserSongs } = useSongStore();
   const { mode, toggleTheme } = useThemeStore();
   
   const [displayName, setDisplayName] = useState(user?.displayName || '');
@@ -21,19 +18,56 @@ const Profile: React.FC = () => {
   const analyzedSongs = songs.filter(song => song.analyzed).length;
   const totalStorage = songs.reduce((total, song) => total + song.fileSize, 0);
   
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     setSaveStatus('saving');
     
-    // Simulate save delay
-    setTimeout(() => {
+    // Placeholder for actual profile update logic (e.g., calling Supabase)
+    // For now, we'll simulate a save and update local state if necessary
+    try {
+      // Example: await updateUserProfile(user.uid, { displayName });
+      // Update the user in the auth store if displayName changes
+      if (user && displayName !== user.displayName) {
+        // setUser({ ...user, displayName }); // Commented out as setUser is removed for now
+        // If you need to update user details, you'll need a specific function in authStore for it.
+      }
+      
       setSaveStatus('success');
       setIsEditing(false);
       
-      // Reset status after a delay
-      setTimeout(() => {
-        setSaveStatus('idle');
-      }, 3000);
-    }, 1000);
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (error) {
+      setSaveStatus('error');
+      console.error("Failed to save profile:", error);
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
+  };
+  
+  // Fetch songs when the component mounts or user changes
+  useEffect(() => {
+    if (user?.uid) {
+      fetchUserSongs(user.uid).catch(err => {
+        console.error("Failed to fetch songs for profile:", err);
+        // Optionally set an error state here
+      });
+    }
+  }, [user?.uid, fetchUserSongs]);
+
+  // Update displayName state when user object changes from authStore
+  useEffect(() => {
+    if (user?.displayName) {
+      setDisplayName(user.displayName);
+    }
+  }, [user?.displayName]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Redirect to login or home page after logout
+      // navigate('/login'); // Assuming you have access to navigate from react-router-dom
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Optionally show an error message to the user
+    }
   };
   
   return (
@@ -176,6 +210,17 @@ const Profile: React.FC = () => {
                   )}
                 </div>
               </div>
+
+              {/* Logout Button */}
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <button 
+                  onClick={handleLogout} 
+                  className="btn-danger w-full sm:w-auto flex items-center justify-center"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -223,7 +268,7 @@ const Profile: React.FC = () => {
                     Storage Used
                   </h3>
                   <p className="mt-1 text-3xl font-semibold text-gray-900 dark:text-white">
-                    {formatStorage(totalStorage)}
+                    {formatFileSize(totalStorage)}
                   </p>
                   <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full">
                     <div 
@@ -232,7 +277,7 @@ const Profile: React.FC = () => {
                     ></div>
                   </div>
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    {formatStorage(totalStorage)} of 1 GB
+                    {formatFileSize(totalStorage)} of 1 GB
                   </p>
                 </div>
                 
@@ -256,7 +301,7 @@ const Profile: React.FC = () => {
   );
 };
 
-const formatStorage = (bytes: number): string => {
+const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
   
   const k = 1024;
