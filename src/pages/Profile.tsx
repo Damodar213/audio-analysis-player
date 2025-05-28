@@ -16,7 +16,7 @@ const Profile: React.FC = () => {
   // Calculate user stats
   const totalSongs = songs.length;
   const analyzedSongs = songs.filter(song => song.analyzed).length;
-  const totalStorage = songs.reduce((total, song) => total + song.fileSize, 0);
+  const totalStorage = songs.reduce((total, song) => total + song.file_size, 0);
   
   const handleSaveProfile = async () => {
     setSaveStatus('saving');
@@ -173,41 +173,7 @@ const Profile: React.FC = () => {
                 </div>
                 
                 <div className="pt-4 flex justify-end">
-                  {!isEditing ? (
-                    <button
-                      onClick={() => setIsEditing(true)}
-                      className="btn-primary"
-                    >
-                      Edit Profile
-                    </button>
-                  ) : (
-                    <div className="space-x-3">
-                      <button
-                        onClick={() => setIsEditing(false)}
-                        className="btn-outline"
-                      >
-                        Cancel
-                      </button>
-                      
-                      <button
-                        onClick={handleSaveProfile}
-                        className="btn-primary inline-flex items-center"
-                        disabled={saveStatus === 'saving'}
-                      >
-                        {saveStatus === 'saving' ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="mr-2 h-4 w-4" />
-                            Save Changes
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
+                  {/* Edit Profile button removed as requested */}
                 </div>
               </div>
 

@@ -18,6 +18,9 @@ const Upload: React.FC = () => {
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'idle' | 'uploading' | 'success' | 'error'>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   
+  // Utility to generate a stable fileId
+  const getFileId = (file: File) => `${file.name}-${file.size}`;
+  
   const onDrop = useCallback((acceptedFiles: File[]) => {
     // Filter for audio files
     const audioFiles = acceptedFiles.filter(file => file.type.startsWith('audio/'));
@@ -28,7 +31,7 @@ const Upload: React.FC = () => {
     const newProgress: Record<string, number> = {};
     
     audioFiles.forEach(file => {
-      const fileId = `${file.name}-${file.size}-${Date.now()}`;
+      const fileId = getFileId(file);
       newMetadata[fileId] = { 
         title: file.name.split('.')[0],
         artist: '',
@@ -52,7 +55,23 @@ const Upload: React.FC = () => {
   });
   
   const handleRemoveFile = (file: File) => {
+    const fileId = getFileId(file);
     setFiles(prev => prev.filter(f => f !== file));
+    setMetadata(prev => {
+      const newMetadata = { ...prev };
+      delete newMetadata[fileId];
+      return newMetadata;
+    });
+    setUploadStatus(prev => {
+      const newStatus = { ...prev };
+      delete newStatus[fileId];
+      return newStatus;
+    });
+    setUploadProgress(prev => {
+      const newProgress = { ...prev };
+      delete newProgress[fileId];
+      return newProgress;
+    });
   };
   
   const handleMetadataChange = (fileId: string, field: string, value: string) => {
@@ -68,7 +87,7 @@ const Upload: React.FC = () => {
   const handleUploadFile = async (file: File) => {
     if (!user) return;
     
-    const fileId = `${file.name}-${file.size}-${Date.now()}`;
+    const fileId = getFileId(file);
     setUploadStatus(prev => ({ ...prev, [fileId]: 'uploading' }));
     
     try {
@@ -95,7 +114,7 @@ const Upload: React.FC = () => {
       
       // Remove the file from the list after a short delay
       setTimeout(() => {
-        setFiles(prev => prev.filter(f => f !== file));
+        handleRemoveFile(file);
       }, 1500);
       
     } catch (err) {
@@ -108,7 +127,8 @@ const Upload: React.FC = () => {
     if (!user) return;
     
     for (const file of files) {
-      if (uploadStatus[`${file.name}-${file.size}-${Date.now()}`] !== 'success') {
+      const fileId = getFileId(file);
+      if (uploadStatus[fileId] !== 'success') {
         await handleUploadFile(file);
       }
     }
@@ -188,7 +208,7 @@ const Upload: React.FC = () => {
           
           <div className="space-y-4">
             {files.map((file, index) => {
-              const fileId = `${file.name}-${file.size}-${Date.now()}`;
+              const fileId = getFileId(file);
               const status = uploadStatus[fileId] || 'idle';
               const progress = uploadProgress[fileId] || 0;
               
