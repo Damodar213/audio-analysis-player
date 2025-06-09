@@ -7,6 +7,7 @@ import { formatFileSize } from '../utils/formatters';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Song } from '../types';
+import { supabase } from '../supabaseClient';
 
 const Upload: React.FC = () => {
   const { user } = useAuthStore();
@@ -14,7 +15,7 @@ const Upload: React.FC = () => {
   const navigate = useNavigate();
   
   const [files, setFiles] = useState<File[]>([]);
-  const [metadata, setMetadata] = useState<Record<string, { title: string; artist: string; album: string }>>({});
+  const [metadata, setMetadata] = useState<Record<string, { title: string; artist: string; album: string; coverArtFile?: File }>>({});
   const [uploadStatus, setUploadStatus] = useState<Record<string, 'idle' | 'uploading' | 'success' | 'error'>>({});
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   
@@ -22,11 +23,12 @@ const Upload: React.FC = () => {
   const getFileId = (file: File) => `${file.name}-${file.size}`;
   
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    // Filter for audio files
+    // Filter for audio files and image files
     const audioFiles = acceptedFiles.filter(file => file.type.startsWith('audio/'));
+    const imageFiles = acceptedFiles.filter(file => file.type.startsWith('image/'));
     
-    // Initialize metadata and status for each file
-    const newMetadata: Record<string, { title: string; artist: string; album: string }> = {};
+    // Initialize metadata and status for each audio file
+    const newMetadata: Record<string, { title: string; artist: string; album: string; coverArtFile?: File }> = {};
     const newStatus: Record<string, 'idle' | 'uploading' | 'success' | 'error'> = {};
     const newProgress: Record<string, number> = {};
     
@@ -35,10 +37,24 @@ const Upload: React.FC = () => {
       newMetadata[fileId] = { 
         title: file.name.split('.')[0],
         artist: '',
-        album: ''
+        album: '',
+        coverArtFile: undefined
       };
       newStatus[fileId] = 'idle';
       newProgress[fileId] = 0;
+    });
+    
+    // Assign image files to corresponding audio files if they share the same base name
+    imageFiles.forEach(imageFile => {
+      const baseName = imageFile.name.split('.')[0];
+      const matchingAudioFile = audioFiles.find(audioFile => audioFile.name.startsWith(baseName));
+      if (matchingAudioFile) {
+        const audioFileId = getFileId(matchingAudioFile);
+        newMetadata[audioFileId] = {
+          ...newMetadata[audioFileId],
+          coverArtFile: imageFile
+        };
+      }
     });
     
     setFiles(prev => [...prev, ...audioFiles]);
@@ -50,7 +66,8 @@ const Upload: React.FC = () => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
     onDrop,
     accept: {
-      'audio/*': ['.mp3', '.wav', '.ogg', '.flac', '.aac']
+      'audio/*': ['.mp3', '.wav', '.ogg', '.flac', '.aac'],
+      'image/*': ['.jpeg', '.png', '.gif', '.webp']
     }
   });
   
@@ -74,7 +91,7 @@ const Upload: React.FC = () => {
     });
   };
   
-  const handleMetadataChange = (fileId: string, field: string, value: string) => {
+  const handleMetadataChange = (fileId: string, field: string, value: string | File) => {
     setMetadata(prev => ({
       ...prev,
       [fileId]: {
@@ -102,8 +119,30 @@ const Upload: React.FC = () => {
         });
       }, 300);
       
+      let coverArtUrl: string | undefined = undefined;
+      const coverArtFile = metadata[fileId]?.coverArtFile;
+
+      if (coverArtFile) {
+        console.log('[Upload] Uploading cover art...');
+        try {
+          const { data, error } = await supabase.storage
+            .from('cover-art') // Separate bucket for cover art
+            .upload(`${user.uid}/${fileId}-${coverArtFile.name}`, coverArtFile, {
+              cacheControl: '3600',
+              upsert: false
+            });
+          if (error) throw error;
+          const { publicUrl } = supabase.storage.from('cover-art').getPublicUrl(data.path);
+          coverArtUrl = publicUrl;
+          console.log('[Upload] Cover art uploaded:', coverArtUrl);
+        } catch (imageUploadError) {
+          console.error('[Upload] Failed to upload cover art:', imageUploadError);
+          // Continue without cover art if upload fails
+        }
+      }
+
       // Upload the file
-      await uploadSong(file, user.uid, metadata[fileId]);
+      await uploadSong(file, user.uid, { ...metadata[fileId], coverArt: coverArtUrl });
       
       clearInterval(progressInterval);
       setUploadProgress(prev => ({ ...prev, [fileId]: 100 }));
@@ -186,7 +225,7 @@ const Upload: React.FC = () => {
           or click to browse your computer
         </p>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Supported formats: MP3, WAV, OGG, FLAC, AAC
+          Supported formats: MP3, WAV, OGG, FLAC, AAC, JPEG, PNG, GIF, WEBP
         </p>
       </div>
       
@@ -211,6 +250,7 @@ const Upload: React.FC = () => {
               const fileId = getFileId(file);
               const status = uploadStatus[fileId] || 'idle';
               const progress = uploadProgress[fileId] || 0;
+              const currentMetadata = metadata[fileId];
               
               return (
                 <motion.div 
@@ -225,9 +265,17 @@ const Upload: React.FC = () => {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <div className="h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                            <FileMusic className="h-6 w-6 text-gray-500 dark:text-gray-400" />
-                          </div>
+                          {currentMetadata?.coverArtFile ? (
+                            <img 
+                              src={URL.createObjectURL(currentMetadata.coverArtFile)}
+                              alt="Cover Art Preview"
+                              className="h-10 w-10 rounded-lg object-cover"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                              <FileMusic className="h-6 w-6 text-gray-500 dark:text-gray-400" />
+                            </div>
+                          )}
                         </div>
                         
                         <div className="ml-3 min-w-0">
@@ -249,89 +297,102 @@ const Upload: React.FC = () => {
                             >
                               Upload
                             </button>
-                            
                             <button
                               onClick={() => handleRemoveFile(file)}
-                              className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                             >
-                              <X className="h-5 w-5" />
+                              <X className="h-4 w-4" />
                             </button>
                           </>
                         )}
-                        
                         {status === 'uploading' && (
-                          <div className="flex items-center">
-                            <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mr-2">
-                              <div 
-                                className="bg-primary-600 h-2.5 rounded-full"
-                                style={{ width: `${progress}%` }}
-                              ></div>
-                            </div>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {progress}%
-                            </span>
-                          </div>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {progress}%
+                          </span>
                         )}
-                        
                         {status === 'success' && (
                           <CheckCircle className="h-5 w-5 text-success-500" />
                         )}
-                        
                         {status === 'error' && (
-                          <div className="flex items-center">
-                            <AlertCircle className="h-5 w-5 text-error-500 mr-1" />
-                            <span className="text-xs text-error-500">Failed</span>
-                            <button
-                              onClick={() => handleRemoveFile(file)}
-                              className="ml-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                            >
-                              <X className="h-5 w-5" />
-                            </button>
-                          </div>
+                          <AlertCircle className="h-5 w-5 text-error-500" />
                         )}
                       </div>
                     </div>
                     
-                    {status === 'idle' && (
-                      <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Title
-                          </label>
-                          <input
-                            type="text"
-                            value={metadata[fileId]?.title || ''}
-                            onChange={(e) => handleMetadataChange(fileId, 'title', e.target.value)}
-                            className="input text-sm py-1.5"
-                            placeholder="Song title"
-                          />
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div>
+                        <label htmlFor={`title-${fileId}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                          Title
+                        </label>
+                        <input
+                          type="text"
+                          id={`title-${fileId}`}
+                          value={currentMetadata?.title || ''}
+                          onChange={(e) => handleMetadataChange(fileId, 'title', e.target.value)}
+                          className="mt-1 block w-full input-sm"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label htmlFor={`artist-${fileId}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                          Artist name
+                        </label>
+                        <input
+                          type="text"
+                          id={`artist-${fileId}`}
+                          value={currentMetadata?.artist || ''}
+                          onChange={(e) => handleMetadataChange(fileId, 'artist', e.target.value)}
+                          className="mt-1 block w-full input-sm"
+                          placeholder="Artist name"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label htmlFor={`album-${fileId}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                          Album name
+                        </label>
+                        <input
+                          type="text"
+                          id={`album-${fileId}`}
+                          value={currentMetadata?.album || ''}
+                          onChange={(e) => handleMetadataChange(fileId, 'album', e.target.value)}
+                          className="mt-1 block w-full input-sm"
+                          placeholder="Album name"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label htmlFor={`cover-art-${fileId}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+                          Cover Art (Optional)
+                        </label>
+                        <input
+                          type="file"
+                          id={`cover-art-${fileId}`}
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              handleMetadataChange(fileId, 'coverArtFile', e.target.files[0]);
+                            }
+                          }}
+                          className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-1 file:px-2 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 dark:file:bg-primary-900/30 dark:file:text-primary-400 dark:hover:file:bg-primary-900"
+                        />
+                        {currentMetadata?.coverArtFile && (
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Selected: {currentMetadata.coverArtFile.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {status === 'uploading' && (
+                      <div className="mt-4">
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                          <div 
+                            className="bg-primary-600 h-2.5 rounded-full"
+                            style={{ width: `${progress}%` }}
+                          ></div>
                         </div>
-                        
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Artist
-                          </label>
-                          <input
-                            type="text"
-                            value={metadata[fileId]?.artist || ''}
-                            onChange={(e) => handleMetadataChange(fileId, 'artist', e.target.value)}
-                            className="input text-sm py-1.5"
-                            placeholder="Artist name"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Album
-                          </label>
-                          <input
-                            type="text"
-                            value={metadata[fileId]?.album || ''}
-                            onChange={(e) => handleMetadataChange(fileId, 'album', e.target.value)}
-                            className="input text-sm py-1.5"
-                            placeholder="Album name"
-                          />
-                        </div>
+                        <p className="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">{progress}%</p>
                       </div>
                     )}
                   </div>

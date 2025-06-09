@@ -257,7 +257,8 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
         file_size: file.size,
         uploaded_at: Date.now(),
         genres: [],
-        analyzed: false
+        analyzed: false,
+        coverArt: (metadata as any).coverArt || undefined
       };
       
       // STEP 3: Add song metadata to Supabase database
@@ -375,24 +376,10 @@ export const useSupabaseSongStore = create<SongState>((set, get) => ({
       // Update local state to remove the song
       set(state => ({
         songs: state.songs.filter(song => song.id !== songId),
-        loading: false
+        loading: false,
+        selectedSong: state.selectedSong?.id === songId ? null : state.selectedSong,
+        currentlyPlaying: state.currentlyPlaying?.id === songId ? null : state.currentlyPlaying
       }));
-      
-      // If the deleted song was selected or playing, clear those states
-      set(state => {
-        const updates: Partial<SongState> = {};
-        
-        if (state.selectedSong?.id === songId) {
-          updates.selectedSong = null;
-        }
-        
-        if (state.currentlyPlaying?.id === songId) {
-          updates.currentlyPlaying = null;
-          updates.isPlaying = false;
-        }
-        
-        return updates;
-      });
     } catch (error: any) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete song';
       console.error('[SongStore] Error deleting song:', errorMessage);
