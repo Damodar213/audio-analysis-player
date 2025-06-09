@@ -16,7 +16,7 @@ interface AuthState {
   clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: false,
   error: null,
@@ -97,11 +97,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     set({ loading: true });
     try {
+      console.log('[AuthStore] Attempting to log out. Current user state:', get().user);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      console.log('[AuthStore] Logout successful.');
       set({ user: null, loading: false });
     } catch (error) {
       const errorMessage = error instanceof AuthError ? error.message : (error as Error).message || 'An unknown error occurred';
+      console.error('[AuthStore] Logout failed:', errorMessage);
       set({ error: errorMessage, loading: false });
       throw error;
     }
