@@ -23,7 +23,7 @@ const TopBar: React.FC = () => {
         if (location.pathname.startsWith('/analysis')) {
           return 'Genre Analysis';
         }
-        return 'AutoGenre';
+        return 'Music Genre Classifier';
     }
   };
   
@@ -44,7 +44,7 @@ const TopBar: React.FC = () => {
             <div className="md:hidden flex items-center ml-4">
               <Music className="h-8 w-8 text-primary-600 dark:text-primary-400" />
               <span className="ml-2 text-xl font-bold text-primary-600 dark:text-primary-400">
-                AutoGenre
+                Music Genre Classifier
               </span>
             </div>
             

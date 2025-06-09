@@ -51,7 +51,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, setIsOpen }) => {
         <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
           <div className="flex-shrink-0 flex items-center px-4">
             <Music className="h-8 w-8 text-white" />
-            <span className="ml-2 text-xl font-bold text-white">AutoGenre</span>
+            <span className="ml-2 text-xl font-bold text-white">Music Genre Classifier</span>
           </div>
           
           <nav className="mt-5 px-2 space-y-1">

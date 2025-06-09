@@ -32,7 +32,7 @@ const Sidebar: React.FC = () => {
             <div className="flex items-center flex-shrink-0 px-4">
               <div className="flex items-center">
                 <Music className="h-8 w-8 text-white" />
-                <span className="ml-2 text-xl font-bold text-white">AutoGenre</span>
+                <span className="ml-2 text-xl font-bold text-white">Music Genre Classifier</span>
               </div>
             </div>
             
